@@ -24,6 +24,23 @@ It is meant to stay simple for users and still clean for developers:
 - exports Piper checkpoints to ONNX for `sherpa-onnx`
 - runs local CLI inference from exported bundles
 
+## Proof
+
+What a new user can trust right now:
+
+- the public CLI is covered by local tests and CI
+- `prepare`, `dataset`, `report`, `review`, `export`, and `speak` all have real implementations
+- dataset generation writes inspectable CSVs instead of hiding decisions
+- duplicate clips are skipped by default when appending
+- Colab notebooks are included for dataset building and training
+
+What still remains your responsibility:
+
+- source audio quality
+- manual review of the generated dataset
+- training quality checks
+- rights to the source audio, dataset, checkpoint, and released model
+
 ## What It Does Not Do
 
 - it does not train locally out of the box
@@ -38,6 +55,8 @@ python -m venv venv
 venv\Scripts\activate
 pip install -r requirements-dev.txt
 ```
+
+The command examples below use PowerShell-style paths. On Linux or macOS, use `source venv/bin/activate` and normal `/` path separators.
 
 Requirements:
 
@@ -94,10 +113,79 @@ Run local inference:
 sherpa-tts speak --model-dir release/my_voice --text "Hello"
 ```
 
+## First Successful Run
+
+If you want one concrete "I just want to see it work" path, use this:
+
+1. Put a few source files into `raw_audio/my_voice/`.
+2. Check the environment:
+
+```bash
+sherpa-tts doctor --config examples\voice.yaml
+```
+
+Expected result:
+
+- no `FAIL` lines
+- `ffmpeg` is found
+- `examples/voice.yaml` is accepted
+
+3. Normalize audio:
+
+```bash
+sherpa-tts prepare raw_audio\my_voice --out prepared_audio\my_voice
+```
+
+Expected result:
+
+- `prepared_audio/my_voice/` contains normalized `.wav` files
+
+4. Build the dataset:
+
+```bash
+sherpa-tts dataset prepared_audio\my_voice --out data\my_voice
+```
+
+Expected result:
+
+- `data/my_voice/metadata.csv`
+- `data/my_voice/clips.csv`
+- `data/my_voice/rejected.csv`
+- `data/my_voice/sources.csv`
+- `data/my_voice/dataset_report.md`
+- `data/my_voice/wavs/`
+
+5. Inspect the report:
+
+```bash
+sherpa-tts report data\my_voice
+```
+
+Expected result:
+
+- `dataset_report.json` and `dataset_report.md` are refreshed
+- you can immediately see kept vs rejected counts
+
+6. Build a rescue queue:
+
+```bash
+sherpa-tts review data\my_voice --subset rescue
+```
+
+Expected result:
+
+- `data/my_voice/review/review_queue.csv`
+- `data/my_voice/review/rescue_candidates.csv`
+- optional `rejected_wavs/` previews if extraction is enabled
+
+At that point the project has already proven the most important part: it can turn raw audio into a reviewable TTS dataset.
+
 ## Detailed Guide
 
 For the full walkthrough, command usage, config knobs, rescue workflow, append behavior,
 dataset file meanings, Colab notes, and common gotchas, see [USAGE.md](USAGE.md).
+
+Supplemental reference notes live in [docs/README.md](docs/README.md). `README.md` and `USAGE.md` are the canonical user-facing docs.
 
 ## Command Summary
 

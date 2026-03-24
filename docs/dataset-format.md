@@ -1,5 +1,7 @@
 # Dataset Format
 
+Canonical user-facing docs live in `README.md` and `USAGE.md`. This file is a small supplemental reference.
+
 The repository standardizes the dataset output contract so the training notebook and future tools can rely on it.
 
 ## Required Files
@@ -60,4 +62,3 @@ Suggested columns:
 - `candidate_chunks`
 - `kept_chunks`
 - `rejected_chunks`
-

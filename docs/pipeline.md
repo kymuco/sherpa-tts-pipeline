@@ -1,5 +1,7 @@
 # Pipeline Overview
 
+Canonical user-facing docs live in `README.md` and `USAGE.md`. This file is a small supplemental reference.
+
 The repository is organized around a small number of explicit stages.
 
 ## 1. Prepare
@@ -45,4 +47,3 @@ This stage takes a trained checkpoint, exports ONNX, and prepares a `sherpa-onnx
 ## 6. Infer
 
 This stage runs local TTS inference for smoke tests, benchmarking, and demos.
-

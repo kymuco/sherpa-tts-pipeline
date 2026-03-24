@@ -1,5 +1,7 @@
 # Model Release Notes
 
+Canonical user-facing docs live in `README.md` and `USAGE.md`. This file is a small supplemental reference.
+
 Code, model weights, and training data should be treated as separate release concerns.
 
 ## Recommended Export Bundle
@@ -30,4 +32,3 @@ The repository code license does not automatically grant rights to redistribute:
 - datasets
 - checkpoints
 - released models
-

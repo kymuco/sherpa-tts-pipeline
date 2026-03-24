@@ -11,6 +11,7 @@ This document describes the workflow that exists in the repository today.
 - [Install](#install)
 - [Recommended Folder Layout](#recommended-folder-layout)
 - [Workflow At A Glance](#workflow-at-a-glance)
+- [How To Know A Step Worked](#how-to-know-a-step-worked)
 - [1. Check The Environment With `doctor`](#1-check-the-environment-with-doctor)
 - [2. Prepare Source Audio With `prepare`](#2-prepare-source-audio-with-prepare)
 - [3. Build A Dataset With `dataset`](#3-build-a-dataset-with-dataset)
@@ -25,6 +26,7 @@ This document describes the workflow that exists in the repository today.
 - [Rescue Workflow](#rescue-workflow)
 - [Append, Overwrite, And Duplicates](#append-overwrite-and-duplicates)
 - [Common Gotchas](#common-gotchas)
+- [Troubleshooting](#troubleshooting)
 
 ## What This Project Is
 
@@ -70,6 +72,8 @@ Quick sanity check:
 sherpa-tts doctor --config examples\voice.yaml
 ```
 
+The command examples in this file use PowerShell-style line continuations and Windows-style paths. On Linux or macOS, use normal `/` paths and your shell's usual continuation style.
+
 ## Recommended Folder Layout
 
 ```text
@@ -107,6 +111,18 @@ Then:
 - export with `sherpa-tts export`
 - test with `sherpa-tts speak`
 
+## How To Know A Step Worked
+
+Quick reality check by stage:
+
+- `doctor`: no `FAIL` lines in output
+- `prepare`: output directory contains normalized `.wav` files
+- `dataset`: `metadata.csv`, `clips.csv`, `rejected.csv`, `sources.csv`, and `wavs/` exist
+- `report`: `dataset_report.json` and `dataset_report.md` exist or are refreshed
+- `review`: `review_queue.csv` and `rescue_candidates.csv` exist
+- `export`: `model.onnx` exists in the output directory
+- `speak`: a WAV file is written to the requested output path
+
 ## 1. Check The Environment With `doctor`
 
 Use `doctor` first if setup is new or something feels off.
@@ -139,6 +155,12 @@ sherpa-tts doctor ^
 ```
 
 `doctor` returns non-zero only on real failures. Missing CUDA is currently a warning, not a hard failure.
+
+Expected good result:
+
+- `ffmpeg` is found
+- the config file is accepted
+- required Python packages show `OK`
 
 ## 2. Prepare Source Audio With `prepare`
 
@@ -195,6 +217,12 @@ sherpa-tts prepare raw_audio\my_voice ^
 
 When in doubt, keep the default safe mode.
 
+Expected good result:
+
+- the output directory contains `.wav` files
+- the files sound similar to the source, just more consistent in loudness
+- in default mode, sample rate and channel count are not silently forced
+
 ## 3. Build A Dataset With `dataset`
 
 Basic usage:
@@ -241,6 +269,13 @@ For each source file it:
 - writes CSV metadata files
 - writes a dataset report automatically
 
+Expected good result:
+
+- `metadata.csv` is populated
+- `clips.csv` has usable rows
+- `rejected.csv` explains why other candidates were skipped
+- `dataset_report.md` gives a fast summary
+
 ## 4. Read The Dataset Outputs
 
 Inside the dataset directory:
@@ -268,6 +303,11 @@ sherpa-tts report data\my_voice --dry-run
 ```
 
 This is useful after manual edits or merges.
+
+Expected good result:
+
+- the report files exist
+- the counts and durations look plausible for your source material
 
 ## 6. Create A Review Queue With `review`
 
@@ -301,6 +341,11 @@ Why this exists:
 - `review_queue.csv` is better for actual human review
 - rescue candidates are often worth keeping after a second pass
 
+Expected good result:
+
+- `review_queue.csv` opens cleanly in a spreadsheet editor
+- `rescue_candidates.csv` is smaller and focused on salvageable material
+
 ## 7. Build The Dataset In Colab
 
 If your local machine is slow or you want everything in Google Drive, use:
@@ -315,6 +360,11 @@ The notebook lets you choose:
 
 from one edit cell.
 
+Expected good result:
+
+- the generated dataset lands in your Google Drive path
+- the CSV files look the same as the local workflow outputs
+
 ## 8. Train In Colab
 
 Use:
@@ -327,6 +377,11 @@ Expected input:
 - `wavs/`
 
 The notebook is the recommended path for training rather than local training scripts.
+
+Expected good result:
+
+- checkpoints are saved during training
+- you can identify the checkpoint you want to export
 
 ## 9. Export A Piper Checkpoint With `export`
 
@@ -351,6 +406,11 @@ sherpa-tts export ^
 ```
 
 If `tokens.txt` or `espeak-ng-data` are missing, export still works, but the bundle is not ready for `speak`.
+
+Expected good result:
+
+- `model.onnx` exists
+- for a speak-ready bundle, `tokens.txt` and `espeak-ng-data/` are also present
 
 ## 10. Run Local Inference With `speak`
 
@@ -377,6 +437,11 @@ sherpa-tts speak ^
   --sid 0 ^
   --speed 1.0
 ```
+
+Expected good result:
+
+- the output WAV is written
+- synthesis completes without missing-file errors
 
 ## Config Files
 
@@ -464,3 +529,75 @@ sherpa-tts dataset prepared_audio\my_voice --out data\my_voice --append --allow-
 - `voice_rescue.yaml` is intentionally softer. Do not trust rescued clips blindly.
 - `export` needs a real Piper checkpoint and a local `piper1-gpl/src`.
 - `speak` needs `model.onnx`, `tokens.txt`, and `espeak-ng-data` together in the model directory.
+
+## Troubleshooting
+
+### `ffmpeg was not found in PATH`
+
+Cause:
+
+- `prepare`, `dataset`, or `review` preview extraction needs `ffmpeg`
+
+What to do:
+
+- install `ffmpeg`
+- reopen the shell
+- rerun `sherpa-tts doctor`
+
+### `piper1-gpl/src directory not found`
+
+Cause:
+
+- `export` needs a local Piper checkout
+
+What to do:
+
+- clone `piper1-gpl`
+- point `--piper-src` at its `src` directory
+
+### Too many `too_short` clips
+
+Cause:
+
+- strict duration thresholds
+- over-segmentation
+
+What to do:
+
+- try `examples/voice_rescue.yaml`
+- lower `min_duration`
+- increase `merge_gap`
+- slightly increase padding
+
+### Too many `high_no_speech_prob` clips
+
+Cause:
+
+- VAD or Whisper is unsure the segment is reliable speech
+
+What to do:
+
+- review those clips manually
+- try the rescue config
+- consider slightly softer VAD settings or more padding
+
+### `prepare` changed the sound too much
+
+Cause:
+
+- wrong mode or overly aggressive format conversion
+
+What to do:
+
+- use the default `normalize-only` mode
+- avoid forcing `mono` or `22050 Hz` unless you want training-ready files
+
+### `speak` says files are missing
+
+Cause:
+
+- exported bundle is incomplete
+
+What to do:
+
+- make sure the model directory contains `model.onnx`, `tokens.txt`, and `espeak-ng-data/`
