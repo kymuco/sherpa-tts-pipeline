@@ -13,6 +13,7 @@ This document describes the workflow that exists in the repository today.
 - [Recommended Folder Layout](#recommended-folder-layout)
 - [Workflow At A Glance](#workflow-at-a-glance)
 - [How To Know A Step Worked](#how-to-know-a-step-worked)
+- [FAQ](#faq)
 - [1. Check The Environment With `doctor`](#1-check-the-environment-with-doctor)
 - [2. Prepare Source Audio With `prepare`](#2-prepare-source-audio-with-prepare)
 - [3. Build A Dataset With `dataset`](#3-build-a-dataset-with-dataset)
@@ -133,6 +134,40 @@ Quick reality check by stage:
 - `review`: `review_queue.csv` and `rescue_candidates.csv` exist
 - `export`: `model.onnx` exists in the output directory
 - `speak`: a WAV file is written to the requested output path
+
+## FAQ
+
+### Can I skip `prepare` and build directly from raw audio?
+
+Yes.
+
+Use `prepare` when your source material has uneven loudness, mixed formats, or needs a safer pre-pass. If your raw files are already clean and consistent, `dataset` can read them directly.
+
+### Should I use `raw_audio` or `prepared_audio` as the input to `dataset`?
+
+Use `prepared_audio` when you want more consistent loudness and file format going into Whisper. Use `raw_audio` when the originals already sound consistent enough or when you want to avoid an extra preprocessing step.
+
+### When should I use `examples/voice_rescue.yaml`?
+
+Use it for a second pass after the strict dataset build, especially when `rejected.csv` contains many `too_short` or `high_no_speech_prob` rows that might still be usable after review.
+
+### Is `rejected.csv` garbage?
+
+No.
+
+Some rejected rows are genuinely bad. Others are only borderline by current thresholds. That is exactly why `review` and the rescue workflow exist.
+
+### Can I keep adding to the same dataset over time?
+
+Yes.
+
+Use `--append` when you are adding new material to an existing dataset. The tool skips exact duplicate chunks by default.
+
+### Do I need a GPU?
+
+Not strictly.
+
+CPU-only runs are supported, but dataset building can be much slower. Colab is the recommended path when local hardware is weak or you want a cleaner training environment.
 
 ## 1. Check The Environment With `doctor`
 

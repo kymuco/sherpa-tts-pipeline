@@ -1,5 +1,7 @@
 # sherpa-tts-pipeline
 
+[![CI](https://github.com/kymuco/sherpa-tts-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/kymuco/sherpa-tts-pipeline/actions/workflows/ci.yml)
+
 CLI pipeline for building Sherpa-ONNX TTS voices from raw audio.
 
 This repository is for the practical workflow:
@@ -68,6 +70,20 @@ What a user should notice:
 - the tool does not hide decisions inside one opaque file
 - kept clips, rejected clips, and source summaries stay inspectable
 - review artifacts are separate from the training metadata
+
+Example from one local test run:
+
+```text
+kept clips: 223
+rejected clips: 38
+kept audio: about 19.5 minutes
+top rejected reasons:
+- too_short: 30
+- high_no_speech_prob: 7
+- too_long: 1
+```
+
+Those numbers are only an example. Your counts will depend on source quality, speaking style, language, and config thresholds.
 
 ## What It Does Not Do
 
@@ -227,7 +243,7 @@ At that point the project has already proven the most important part: it can tur
 ## Detailed Guide
 
 For the full walkthrough, command usage, config knobs, rescue workflow, append behavior,
-dataset file meanings, Colab notes, and common gotchas, see [USAGE.md](USAGE.md).
+dataset file meanings, Colab notes, FAQ, and common gotchas, see [USAGE.md](USAGE.md).
 
 Supplemental reference notes live in [docs/README.md](docs/README.md). `README.md` and `USAGE.md` are the canonical user-facing docs.
 
