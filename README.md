@@ -1,50 +1,52 @@
 # sherpa-tts-pipeline
 
-Simple CLI and library for building custom TTS voices with:
+Tool-first pipeline for building Sherpa-ONNX TTS voices from raw audio with:
 
-- `faster-whisper` dataset preparation
+- `faster-whisper` dataset generation
 - Piper training in Google Colab
-- ONNX export for local runtime use
+- ONNX export for `sherpa-onnx`
+- local CLI inference
 
-This repo is meant to feel simple from the outside and clean from the inside.
+The repo is meant to stay simple for users and clean for developers: one CLI, one optional config file, one Colab notebook for training.
 
-## Fast Path
+## Workflow
 
-1. Install the package.
-2. Build a dataset from your source audio.
-3. Train in Colab.
-4. Export ONNX.
-5. Test the voice locally.
+1. Prepare raw source audio.
+2. Build a TTS dataset with `sherpa-tts dataset`.
+3. Train the voice in `notebooks/train_piper_colab.ipynb`.
+4. Export the Piper checkpoint with `sherpa-tts export`.
+5. Test the exported bundle with `sherpa-tts speak`.
 
 ## Install
 
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
+python -m venv venv
+venv\Scripts\activate
 pip install -r requirements-dev.txt
 ```
 
-`dataset` also expects `ffmpeg` to be available in `PATH`.
+Requirements:
 
-## Commands
+- `ffmpeg` in `PATH` for dataset generation
+- a local `piper1-gpl/src` checkout for export
 
-Build a dataset:
+## Quick Start
+
+Build a dataset from a directory with audio files:
 
 ```bash
 sherpa-tts dataset raw_audio --out data/my_voice
 ```
 
-Build a dataset with advanced knobs:
-
-```bash
-sherpa-tts dataset raw_audio --out data/my_voice --config examples/voice.yaml
-```
-
-Preview the resolved files and settings without starting Whisper:
+Preview what will be used without starting Whisper:
 
 ```bash
 sherpa-tts dataset raw_audio --out data/my_voice --dry-run
 ```
+
+Train in Colab:
+
+- open `notebooks/train_piper_colab.ipynb`
 
 Export a checkpoint:
 
@@ -52,28 +54,7 @@ Export a checkpoint:
 sherpa-tts export --checkpoint path/to/model.ckpt --out release/my_voice --piper-src path/to/piper1-gpl/src
 ```
 
-Test a voice locally:
-
-```bash
-sherpa-tts speak --model-dir release/my_voice --text "Hello"
-```
-
-## Train In Colab
-
-Open:
-
-- `notebooks/train_piper_colab.ipynb`
-
-The notebook is the current training entry point. It handles:
-
-1. Colab GPU check
-2. Piper install
-3. Drive mount
-4. Dataset validation
-5. Training
-6. ONNX export
-
-If you want a local export bundle that is ready for `speak`, you can also copy assets during export:
+Export a bundle that is ready for `speak`:
 
 ```bash
 sherpa-tts export ^
@@ -84,21 +65,56 @@ sherpa-tts export ^
   --espeak-data-dir path/to/espeak-ng-data
 ```
 
-## Optional Config
+Run local inference:
+
+```bash
+sherpa-tts speak --model-dir release/my_voice --text "Hello"
+```
+
+Preview inference settings without generating audio:
+
+```bash
+sherpa-tts speak --model-dir release/my_voice --text "Hello" --dry-run
+```
+
+## Config
 
 You do not need a config file to start.
 
-If you want more control, use:
+If you want extra control, use:
 
 - `examples/voice.yaml`
 
-That keeps the public UX simple:
+It can hold knobs for:
 
-- no required project bootstrap
-- no required multi-file config system
-- no need to understand the package layout before first use
+- dataset language and Whisper settings
+- clip duration and quality thresholds
+- export paths and ONNX opset
+- inference provider, speed, speaker id, and output path
 
-## Package Layout
+## What `dataset` Creates
+
+Inside the output directory:
+
+- `metadata.csv`
+- `clips.csv`
+- `rejected.csv`
+- `sources.csv`
+- `wavs/`
+
+This matches the workflow used by the Colab notebook and keeps the generated dataset inspectable before training.
+
+## Commands
+
+The public CLI is intentionally small:
+
+- `sherpa-tts dataset`
+- `sherpa-tts export`
+- `sherpa-tts speak`
+
+All three commands support `--dry-run` for path and config validation before the heavy step.
+
+## Repository Layout
 
 ```text
 sherpa-tts-pipeline/
@@ -116,13 +132,3 @@ sherpa-tts-pipeline/
     sherpa_tts_pipeline/
   tests/
 ```
-
-## Current Status
-
-The public CLI is intentionally simple:
-
-- `dataset`
-- `export`
-- `speak`
-
-All three commands have a `--dry-run` mode so you can validate paths and config before launching the heavy step.
