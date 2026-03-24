@@ -9,6 +9,7 @@ This document describes the workflow that exists in the repository today.
 - [What This Project Is](#what-this-project-is)
 - [Requirements](#requirements)
 - [Install](#install)
+- [Tested On](#tested-on)
 - [Recommended Folder Layout](#recommended-folder-layout)
 - [Workflow At A Glance](#workflow-at-a-glance)
 - [How To Know A Step Worked](#how-to-know-a-step-worked)
@@ -25,6 +26,7 @@ This document describes the workflow that exists in the repository today.
 - [Config Files](#config-files)
 - [Rescue Workflow](#rescue-workflow)
 - [Append, Overwrite, And Duplicates](#append-overwrite-and-duplicates)
+- [Known Limitations](#known-limitations)
 - [Common Gotchas](#common-gotchas)
 - [Troubleshooting](#troubleshooting)
 
@@ -73,6 +75,15 @@ sherpa-tts doctor --config examples\voice.yaml
 ```
 
 The command examples in this file use PowerShell-style line continuations and Windows-style paths. On Linux or macOS, use normal `/` paths and your shell's usual continuation style.
+
+## Tested On
+
+- Windows with PowerShell during local development
+- Ubuntu in GitHub Actions CI
+- Python `3.11` in CI
+- Python `3.10+` as the supported package target
+
+This means the project is not Windows-only, but the examples are currently written in a Windows-first style.
 
 ## Recommended Folder Layout
 
@@ -519,6 +530,15 @@ If you really want duplicates:
 ```bash
 sherpa-tts dataset prepared_audio\my_voice --out data\my_voice --append --allow-duplicates
 ```
+
+## Known Limitations
+
+- the default workflow is aimed at single-speaker voice building first
+- automatic segmentation still needs human review before training
+- `prepare` normalizes loudness, but it does not remove noise, room reverb, or bad mic quality
+- `export` depends on a separate local `piper1-gpl/src` checkout
+- training is documented through Colab rather than a built-in one-command local trainer
+- the examples currently explain PowerShell first and Bash second
 
 ## Common Gotchas
 

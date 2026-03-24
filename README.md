@@ -41,12 +41,48 @@ What still remains your responsibility:
 - training quality checks
 - rights to the source audio, dataset, checkpoint, and released model
 
+## Demo
+
+What a successful dataset build looks like on disk:
+
+```text
+data/
+  my_voice/
+    metadata.csv
+    clips.csv
+    rejected.csv
+    sources.csv
+    dataset_report.json
+    dataset_report.md
+    wavs/
+      1.wav
+      2.wav
+      3.wav
+    review/
+      review_queue.csv
+      rescue_candidates.csv
+```
+
+What a user should notice:
+
+- the tool does not hide decisions inside one opaque file
+- kept clips, rejected clips, and source summaries stay inspectable
+- review artifacts are separate from the training metadata
+
 ## What It Does Not Do
 
 - it does not train locally out of the box
 - it does not include Piper itself
 - it does not magically clean bad source material
 - it does not replace manual review of the dataset
+
+## Known Limitations
+
+- the workflow is currently optimized for single-speaker voice building first
+- dataset quality still depends heavily on source quality and manual review
+- `export` depends on a separate local `piper1-gpl/src` checkout
+- training is Colab-first rather than a one-command local training experience
+- the command examples are PowerShell-first, even though the core code is cross-platform
 
 ## Install
 
@@ -63,6 +99,14 @@ Requirements:
 - Python `3.10+`
 - `ffmpeg` in `PATH` for `prepare`, `dataset`, and review preview extraction
 - local `piper1-gpl/src` checkout for `export`
+
+## Tested On
+
+- Windows with PowerShell during local development
+- Ubuntu in GitHub Actions CI
+- Python `3.11` in CI
+- Python `3.10+` as the supported package target
+- CPU-only environments by default, with optional CUDA acceleration when available
 
 ## Quick Start
 
