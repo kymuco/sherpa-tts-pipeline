@@ -1,0 +1,38 @@
+dataset:
+  language: ru
+  whisper:
+    model: large-v3
+    device: auto
+    compute_type: auto
+    beam_size: 8
+    best_of: 8
+    condition_on_previous_text: false
+    no_vad: false
+    vad_min_silence_ms: 500
+    vad_speech_pad_ms: 250
+  audio:
+    sample_rate: 22050
+    min_duration: 2.0
+    max_duration: 12.0
+    start_pad: 0.18
+    end_pad: 0.45
+    merge_gap: 0.35
+    split_gap: 0.60
+  quality:
+    min_words: 1
+    min_avg_logprob: -0.90
+    max_no_speech_prob: 0.60
+    min_word_prob: 0.55
+
+export:
+  piper_src: external/piper1-gpl/src
+  tokens: null
+  espeak_data_dir: null
+  opset_version: 15
+
+speak:
+  provider: cpu
+  num_threads: 4
+  sid: 0
+  speed: 1.0
+  output: outputs/tts.wav
