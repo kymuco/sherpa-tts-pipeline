@@ -4,6 +4,9 @@ import argparse
 from typing import Sequence
 
 from sherpa_tts_pipeline.dataset.build import run_dataset_stage
+from sherpa_tts_pipeline.dataset.report import run_report_stage
+from sherpa_tts_pipeline.dataset.review import run_review_stage
+from sherpa_tts_pipeline.doctor import run_doctor_stage
 from sherpa_tts_pipeline.export.piper_onnx import run_export_stage
 from sherpa_tts_pipeline.infer.sherpa import run_speak_stage
 from sherpa_tts_pipeline.prepare.normalize import run_prepare_stage
@@ -43,6 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional config file with advanced knobs.",
     )
     prepare_parser.add_argument(
+        "--mode",
+        choices=["normalize-only", "training-ready"],
+        default=None,
+        help="Preparation mode. normalize-only preserves format by default, training-ready makes mono 22050 Hz WAVs.",
+    )
+    prepare_parser.add_argument(
         "--target-lufs",
         type=float,
         default=None,
@@ -64,13 +73,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--sample-rate",
         type=int,
         default=None,
-        help="Output sample rate for normalized WAV files.",
+        help="Optional output sample rate override. Leave unset to keep the original rate in normalize-only mode.",
     )
     prepare_parser.add_argument(
         "--mono",
         action=argparse.BooleanOptionalAction,
         default=None,
         help="Write mono output. Use --no-mono to keep the original channel count.",
+    )
+    prepare_parser.add_argument(
+        "--codec",
+        default=None,
+        help="Optional ffmpeg audio codec override, for example pcm_s16le or pcm_s24le.",
     )
     prepare_parser.add_argument(
         "--overwrite",
@@ -125,11 +139,99 @@ def build_parser() -> argparse.ArgumentParser:
         help="Rebuild the dataset directory from scratch.",
     )
     dataset_parser.add_argument(
+        "--allow-duplicates",
+        action="store_true",
+        help="Allow duplicate clips when appending to an existing dataset.",
+    )
+    dataset_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Validate inputs and config without running Whisper or writing files.",
     )
     dataset_parser.set_defaults(handler=run_dataset_stage)
+
+    review_parser = subparsers.add_parser(
+        "review",
+        help="Prepare a manual review queue and optional rescue previews from an existing dataset.",
+    )
+    review_parser.add_argument(
+        "dataset_dir",
+        help="Existing dataset directory that contains clips.csv and rejected.csv.",
+    )
+    review_parser.add_argument(
+        "--out",
+        default=None,
+        help="Output directory for review manifests. Defaults to <dataset_dir>/review.",
+    )
+    review_parser.add_argument(
+        "--subset",
+        choices=["all", "kept", "rejected", "rescue"],
+        default="all",
+        help="Choose which entries to include in the review queue.",
+    )
+    review_parser.add_argument(
+        "--extract-rejected",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Extract preview WAVs for rejected rows so they can be reviewed directly.",
+    )
+    review_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Replace existing review outputs.",
+    )
+    review_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate paths and show the planned review queue without writing files.",
+    )
+    review_parser.set_defaults(handler=run_review_stage)
+
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Generate a human-readable summary report for an existing dataset.",
+    )
+    report_parser.add_argument(
+        "dataset_dir",
+        help="Existing dataset directory.",
+    )
+    report_parser.add_argument(
+        "--out",
+        default=None,
+        help="Optional output directory for report files. Defaults to the dataset directory.",
+    )
+    report_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show summary counts without writing report files.",
+    )
+    report_parser.set_defaults(handler=run_report_stage)
+
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Check the local environment and optional project paths.",
+    )
+    doctor_parser.add_argument(
+        "--config",
+        default=None,
+        help="Optional config file to validate.",
+    )
+    doctor_parser.add_argument(
+        "--dataset-dir",
+        default=None,
+        help="Optional dataset directory to validate.",
+    )
+    doctor_parser.add_argument(
+        "--model-dir",
+        default=None,
+        help="Optional exported model directory to validate.",
+    )
+    doctor_parser.add_argument(
+        "--piper-src",
+        default=None,
+        help="Optional piper1-gpl/src directory to validate for export.",
+    )
+    doctor_parser.set_defaults(handler=run_doctor_stage)
 
     export_parser = subparsers.add_parser(
         "export",

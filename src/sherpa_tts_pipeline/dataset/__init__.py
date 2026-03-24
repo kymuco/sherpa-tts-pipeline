@@ -5,9 +5,12 @@ from sherpa_tts_pipeline.dataset.build import (
     DatasetOptions,
     build_dataset,
 )
+from sherpa_tts_pipeline.dataset.report import summarize_dataset, write_dataset_report
 
 __all__ = [
     "DatasetBuildResult",
     "DatasetOptions",
     "build_dataset",
+    "summarize_dataset",
+    "write_dataset_report",
 ]

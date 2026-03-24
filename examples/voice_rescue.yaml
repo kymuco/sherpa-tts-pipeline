@@ -21,22 +21,22 @@ dataset:
     best_of: 8
     condition_on_previous_text: false
     no_vad: false
-    vad_min_silence_ms: 500
-    vad_speech_pad_ms: 250
+    vad_min_silence_ms: 420
+    vad_speech_pad_ms: 320
   audio:
     sample_rate: 22050
-    min_duration: 2.0
-    max_duration: 12.0
-    start_pad: 0.18
-    end_pad: 0.45
-    merge_gap: 0.35
+    min_duration: 1.5
+    max_duration: 13.5
+    start_pad: 0.22
+    end_pad: 0.55
+    merge_gap: 0.45
     split_gap: 0.60
   output:
     allow_duplicates: false
   quality:
     min_words: 1
     min_avg_logprob: -0.90
-    max_no_speech_prob: 0.60
+    max_no_speech_prob: 0.78
     min_word_prob: 0.55
 
 export:

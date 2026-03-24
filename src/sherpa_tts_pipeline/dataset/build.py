@@ -11,6 +11,7 @@ from typing import Any, Sequence
 
 from sherpa_tts_pipeline.config import get_nested, load_optional_yaml_config
 from sherpa_tts_pipeline.dataset.audio import SUPPORTED_AUDIO_SUFFIXES, looks_like_audio
+from sherpa_tts_pipeline.dataset.report import write_dataset_report
 
 LOGGER = logging.getLogger(__name__)
 
@@ -113,6 +114,7 @@ class DatasetOptions:
     config_path: Path | None = None
     append: bool = False
     overwrite: bool = False
+    allow_duplicates: bool = False
     dry_run: bool = False
     language: str | None = None
     whisper_model: str = "large-v3"
@@ -146,6 +148,9 @@ class DatasetBuildResult:
     sources_path: Path
     kept_count: int
     rejected_count: int
+    duplicate_count: int = 0
+    report_json_path: Path | None = None
+    report_markdown_path: Path | None = None
 
 
 def _first_not_none(*values: Any) -> Any:
@@ -343,6 +348,51 @@ def open_csv_writer(path: Path, fieldnames: Sequence[str]) -> tuple[csv.DictWrit
     if not file_exists:
         writer.writeheader()
     return writer, file_handle
+
+
+def normalize_source_path(value: str | Path) -> str:
+    try:
+        return str(Path(value).expanduser().resolve())
+    except Exception:
+        return str(value)
+
+
+def chunk_signature(
+    source_file: str | Path,
+    export_start: float,
+    export_end: float,
+    text: str,
+) -> str:
+    normalized_text_value = normalize_text(text).casefold()
+    return "|".join(
+        [
+            normalize_source_path(source_file).casefold(),
+            f"{float(export_start):.3f}",
+            f"{float(export_end):.3f}",
+            normalized_text_value,
+        ]
+    )
+
+
+def load_existing_chunk_signatures(*paths: Path) -> set[str]:
+    signatures: set[str] = set()
+
+    for path in paths:
+        if not path.exists():
+            continue
+
+        with path.open("r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                signatures.add(
+                    chunk_signature(
+                        source_file=row.get("source_file", ""),
+                        export_start=float(row.get("export_start_sec") or 0.0),
+                        export_end=float(row.get("export_end_sec") or 0.0),
+                        text=row.get("text", ""),
+                    )
+                )
+
+    return signatures
 
 
 def normalize_text(text: str) -> str:
@@ -692,6 +742,11 @@ def build_dataset(options: DatasetOptions) -> DatasetBuildResult:
     )
 
     clip_index = next_clip_index(metadata_path, wavs_dir) if options.append else 1
+    existing_signatures = (
+        load_existing_chunk_signatures(clips_path, rejected_path)
+        if options.append and not options.allow_duplicates
+        else set()
+    )
     ctranslate2_module, whisper_model_cls, vad_options_cls = load_whisper_runtime()
     device, compute_type = resolve_device_and_compute_type(
         options.device,
@@ -716,6 +771,7 @@ def build_dataset(options: DatasetOptions) -> DatasetBuildResult:
 
     total_kept = 0
     total_rejected = 0
+    total_duplicates = 0
 
     try:
         for source_number, source_path in enumerate(options.inputs, start=1):
@@ -744,6 +800,21 @@ def build_dataset(options: DatasetOptions) -> DatasetBuildResult:
             rejected_for_source = 0
 
             for chunk in chunks:
+                signature = chunk_signature(
+                    source_file=chunk.source_path,
+                    export_start=chunk.export_start,
+                    export_end=chunk.export_end,
+                    text=chunk.text,
+                )
+                if signature in existing_signatures:
+                    LOGGER.info(
+                        "[SKIP] duplicate_existing | %.2fs | %s",
+                        chunk.export_duration,
+                        chunk.text,
+                    )
+                    total_duplicates += 1
+                    continue
+
                 reason = rejection_reason(
                     chunk=chunk,
                     min_duration=options.min_duration,
@@ -756,6 +827,7 @@ def build_dataset(options: DatasetOptions) -> DatasetBuildResult:
 
                 if reason is not None:
                     rejected_writer.writerow(row_from_chunk("", chunk, reason))
+                    existing_signatures.add(signature)
                     log_chunk("[SKIP]", reason, chunk)
                     rejected_for_source += 1
                     continue
@@ -773,6 +845,7 @@ def build_dataset(options: DatasetOptions) -> DatasetBuildResult:
                 )
                 metadata_file.write(f"{clip_id}|{chunk.text}\n")
                 clips_writer.writerow(row_from_chunk(clip_id, chunk, ""))
+                existing_signatures.add(signature)
                 log_chunk("[KEEP]", f"{clip_id}.wav", chunk)
                 kept_for_source += 1
 
@@ -805,12 +878,20 @@ def build_dataset(options: DatasetOptions) -> DatasetBuildResult:
         rejected_file.close()
         sources_file.close()
 
+    report_result = write_dataset_report(options.output_dir)
+
     LOGGER.info("Dataset build finished.")
-    LOGGER.info("  kept=%s | rejected=%s", total_kept, total_rejected)
+    LOGGER.info(
+        "  kept=%s | rejected=%s | duplicates_skipped=%s",
+        total_kept,
+        total_rejected,
+        total_duplicates,
+    )
     LOGGER.info("  metadata=%s", metadata_path)
     LOGGER.info("  clips=%s", clips_path)
     LOGGER.info("  rejected=%s", rejected_path)
     LOGGER.info("  sources=%s", sources_path)
+    LOGGER.info("  report=%s", report_result.markdown_path)
 
     return DatasetBuildResult(
         output_dir=options.output_dir,
@@ -820,6 +901,9 @@ def build_dataset(options: DatasetOptions) -> DatasetBuildResult:
         sources_path=sources_path,
         kept_count=total_kept,
         rejected_count=total_rejected,
+        duplicate_count=total_duplicates,
+        report_json_path=report_result.json_path,
+        report_markdown_path=report_result.markdown_path,
     )
 
 
@@ -834,6 +918,10 @@ def _build_dataset_options(
         config_path=config_path,
         append=bool(args.append),
         overwrite=bool(args.overwrite),
+        allow_duplicates=bool(
+            args.allow_duplicates
+            or get_nested(config, "dataset", "output", "allow_duplicates", default=False)
+        ),
         dry_run=bool(args.dry_run),
         language=_normalize_language(
             _first_not_none(args.language, get_nested(config, "dataset", "language"))
@@ -910,10 +998,11 @@ def _log_dataset_plan(options: DatasetOptions) -> None:
         options.compute_type,
     )
     LOGGER.info(
-        "Audio: sample_rate=%s | min=%.2fs | max=%.2fs",
+        "Audio: sample_rate=%s | min=%.2fs | max=%.2fs | allow_duplicates=%s",
         options.sample_rate,
         options.min_duration,
         options.max_duration,
+        options.allow_duplicates,
     )
     LOGGER.info(
         "Quality: min_words=%s | min_avg_logprob=%.2f | min_word_prob=%.2f",

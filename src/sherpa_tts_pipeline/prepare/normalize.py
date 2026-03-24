@@ -12,6 +12,8 @@ from sherpa_tts_pipeline.dataset.audio import SUPPORTED_AUDIO_SUFFIXES
 
 LOGGER = logging.getLogger(__name__)
 
+PREPARE_MODES = {"normalize-only", "training-ready"}
+
 
 @dataclass
 class PrepareJob:
@@ -27,13 +29,49 @@ class PrepareOptions:
     inputs: list[str]
     output_dir: Path
     config_path: Path | None = None
+    mode: str = "normalize-only"
     target_lufs: float = -18.0
     loudness_range: float = 7.0
     true_peak: float = -1.5
-    sample_rate: int = 22050
-    mono: bool = True
+    sample_rate: int | None = None
+    mono: bool | None = None
+    output_codec: str | None = None
     overwrite: bool = False
     dry_run: bool = False
+
+    @property
+    def resolved_sample_rate(self) -> int | None:
+        if self.sample_rate is not None:
+            return self.sample_rate
+        if self.mode == "training-ready":
+            return 22050
+        return None
+
+    @property
+    def resolved_mono(self) -> bool | None:
+        if self.mono is not None:
+            return self.mono
+        if self.mode == "training-ready":
+            return True
+        return None
+
+    @property
+    def resolved_output_codec(self) -> str:
+        if self.output_codec:
+            return self.output_codec
+        return "pcm_s16le" if self.mode == "training-ready" else "pcm_s24le"
+
+
+def _optional_bool(value: Any) -> bool | None:
+    if value is None:
+        return None
+    return bool(value)
+
+
+def _optional_int(value: Any) -> int | None:
+    if value is None or value == "":
+        return None
+    return int(value)
 
 
 def _collect_audio_files(directory: Path) -> list[Path]:
@@ -117,7 +155,11 @@ def resolve_prepare_jobs(input_values: Sequence[str]) -> list[PrepareJob]:
 
 
 def validate_options(options: PrepareOptions, require_ffmpeg: bool) -> None:
-    if options.sample_rate <= 0:
+    if options.mode not in PREPARE_MODES:
+        raise ValueError(
+            f"Unsupported prepare mode: {options.mode}. Use one of: {', '.join(sorted(PREPARE_MODES))}."
+        )
+    if options.resolved_sample_rate is not None and options.resolved_sample_rate <= 0:
         raise ValueError("sample_rate must be greater than zero.")
     if options.loudness_range <= 0:
         raise ValueError("lra must be greater than zero.")
@@ -146,17 +188,18 @@ def build_ffmpeg_command(
             f"LRA={options.loudness_range}:"
             f"TP={options.true_peak}"
         ),
-        "-ar",
-        str(options.sample_rate),
     ]
 
-    if options.mono:
+    if options.resolved_sample_rate is not None:
+        command.extend(["-ar", str(options.resolved_sample_rate)])
+
+    if options.resolved_mono:
         command.extend(["-ac", "1"])
 
     command.extend(
         [
             "-c:a",
-            "pcm_s16le",
+            options.resolved_output_codec,
             str(output_path),
         ]
     )
@@ -188,10 +231,16 @@ def prepare_audio(options: PrepareOptions) -> tuple[int, int]:
 
 
 def _build_options(args: Any, config: dict[str, Any], config_path: Path | None) -> PrepareOptions:
+    mode = str(
+        args.mode
+        if args.mode is not None
+        else get_nested(config, "prepare", "mode", default="normalize-only")
+    ).strip()
+
     mono = (
         args.mono
         if args.mono is not None
-        else bool(get_nested(config, "prepare", "audio", "mono", default=True))
+        else _optional_bool(get_nested(config, "prepare", "audio", "mono", default=None))
     )
     overwrite = (
         args.overwrite
@@ -203,6 +252,7 @@ def _build_options(args: Any, config: dict[str, Any], config_path: Path | None) 
         inputs=list(args.inputs),
         output_dir=Path(args.out).expanduser().resolve(),
         config_path=config_path,
+        mode=mode,
         target_lufs=float(
             args.target_lufs
             if args.target_lufs is not None
@@ -218,15 +268,26 @@ def _build_options(args: Any, config: dict[str, Any], config_path: Path | None) 
             if args.true_peak is not None
             else get_nested(config, "prepare", "loudness", "true_peak", default=-1.5)
         ),
-        sample_rate=int(
+        sample_rate=_optional_int(
             args.sample_rate
             if args.sample_rate is not None
-            else get_nested(config, "prepare", "audio", "sample_rate", default=22050)
+            else get_nested(config, "prepare", "audio", "sample_rate", default=None)
         ),
-        mono=bool(mono),
+        mono=mono,
+        output_codec=(
+            str(args.codec)
+            if args.codec is not None
+            else get_nested(config, "prepare", "audio", "codec", default=None)
+        ),
         overwrite=bool(overwrite),
         dry_run=bool(args.dry_run),
     )
+
+
+def _format_audio_setting(value: Any, fallback_label: str = "keep-original") -> str:
+    if value is None:
+        return fallback_label
+    return str(value)
 
 
 def _log_plan(options: PrepareOptions, jobs: Sequence[PrepareJob]) -> None:
@@ -234,6 +295,7 @@ def _log_plan(options: PrepareOptions, jobs: Sequence[PrepareJob]) -> None:
 
     LOGGER.info("Command: prepare")
     LOGGER.info("Output dir: %s", options.output_dir)
+    LOGGER.info("Mode: %s", options.mode)
     LOGGER.info(
         "Loudness: target_lufs=%.1f | lra=%.1f | true_peak=%.1f",
         options.target_lufs,
@@ -241,9 +303,10 @@ def _log_plan(options: PrepareOptions, jobs: Sequence[PrepareJob]) -> None:
         options.true_peak,
     )
     LOGGER.info(
-        "Audio: sample_rate=%s | mono=%s | overwrite=%s",
-        options.sample_rate,
-        options.mono,
+        "Audio: sample_rate=%s | mono=%s | codec=%s | overwrite=%s",
+        _format_audio_setting(options.resolved_sample_rate),
+        _format_audio_setting(options.resolved_mono),
+        options.resolved_output_codec,
         options.overwrite,
     )
     LOGGER.info("Resolved inputs: %s", len(jobs))
