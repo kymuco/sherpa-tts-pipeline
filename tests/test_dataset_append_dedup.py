@@ -152,6 +152,10 @@ def test_append_skips_existing_duplicate_chunks(monkeypatch, tmp_path: Path) -> 
         "sherpa_tts_pipeline.dataset.build.export_clip",
         lambda source_path, clip_path, start, end, sample_rate: _write_dummy_wav(clip_path),
     )
+    monkeypatch.setattr(
+        "sherpa_tts_pipeline.dataset.build.shutil.which",
+        lambda name: "/usr/bin/ffmpeg" if name == "ffmpeg" else None,
+    )
 
     result = build_dataset(
         DatasetOptions(
