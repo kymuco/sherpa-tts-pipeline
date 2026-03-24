@@ -2,6 +2,7 @@
 
 Tool-first pipeline for building Sherpa-ONNX TTS voices from raw audio with:
 
+- source audio preparation and loudness normalization
 - `faster-whisper` dataset generation
 - Piper training in Google Colab
 - ONNX export for `sherpa-onnx`
@@ -12,10 +13,11 @@ The repo is meant to stay simple for users and clean for developers: one CLI, on
 ## Workflow
 
 1. Prepare raw source audio.
-2. Build a TTS dataset with `sherpa-tts dataset`.
-3. Train the voice in `notebooks/train_piper_colab.ipynb`.
-4. Export the Piper checkpoint with `sherpa-tts export`.
-5. Test the exported bundle with `sherpa-tts speak`.
+2. Normalize audio with `sherpa-tts prepare`.
+3. Build a TTS dataset with `sherpa-tts dataset`.
+4. Train the voice in `notebooks/train_piper_colab.ipynb`.
+5. Export the Piper checkpoint with `sherpa-tts export`.
+6. Test the exported bundle with `sherpa-tts speak`.
 
 ## Install
 
@@ -27,21 +29,35 @@ pip install -r requirements-dev.txt
 
 Requirements:
 
-- `ffmpeg` in `PATH` for dataset generation
+- `ffmpeg` in `PATH` for `prepare` and dataset generation
 - a local `piper1-gpl/src` checkout for export
 
 ## Quick Start
 
+Normalize raw audio into a clean working directory:
+
+```bash
+sherpa-tts prepare raw_audio\my_voice --out prepared_audio\my_voice
+```
+
+Preview normalization without writing files:
+
+```bash
+sherpa-tts prepare raw_audio\my_voice --out prepared_audio\my_voice --dry-run
+```
+
+`prepare` writes normalized `.wav` files to the output directory and keeps the original files untouched.
+
 Build a dataset from a directory with audio files:
 
 ```bash
-sherpa-tts dataset raw_audio --out data/my_voice
+sherpa-tts dataset prepared_audio\my_voice --out data\my_voice
 ```
 
 Preview what will be used without starting Whisper:
 
 ```bash
-sherpa-tts dataset raw_audio --out data/my_voice --dry-run
+sherpa-tts dataset prepared_audio\my_voice --out data\my_voice --dry-run
 ```
 
 Train in Colab:
@@ -87,6 +103,8 @@ If you want extra control, use:
 
 It can hold knobs for:
 
+- loudness normalization targets
+- output sample rate and mono conversion for prepared audio
 - dataset language and Whisper settings
 - clip duration and quality thresholds
 - export paths and ONNX opset
@@ -108,11 +126,12 @@ This matches the workflow used by the Colab notebook and keeps the generated dat
 
 The public CLI is intentionally small:
 
+- `sherpa-tts prepare`
 - `sherpa-tts dataset`
 - `sherpa-tts export`
 - `sherpa-tts speak`
 
-All three commands support `--dry-run` for path and config validation before the heavy step.
+All four commands support `--dry-run` for path and config validation before the heavy step.
 
 ## Repository Layout
 

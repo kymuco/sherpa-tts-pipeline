@@ -6,6 +6,7 @@ from typing import Sequence
 from sherpa_tts_pipeline.dataset.build import run_dataset_stage
 from sherpa_tts_pipeline.export.piper_onnx import run_export_stage
 from sherpa_tts_pipeline.infer.sherpa import run_speak_stage
+from sherpa_tts_pipeline.prepare.normalize import run_prepare_stage
 from sherpa_tts_pipeline.utils.logging import configure_logging
 
 
@@ -21,6 +22,68 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    prepare_parser = subparsers.add_parser(
+        "prepare",
+        help="Normalize source audio before dataset generation.",
+    )
+    prepare_parser.add_argument(
+        "inputs",
+        nargs="+",
+        help="Source audio files or directories.",
+    )
+    prepare_parser.add_argument(
+        "--out",
+        required=True,
+        help="Output directory for normalized audio.",
+    )
+    prepare_parser.add_argument(
+        "--config",
+        default=None,
+        help="Optional config file with advanced knobs.",
+    )
+    prepare_parser.add_argument(
+        "--target-lufs",
+        type=float,
+        default=None,
+        help="Target integrated loudness in LUFS.",
+    )
+    prepare_parser.add_argument(
+        "--lra",
+        type=float,
+        default=None,
+        help="Target loudness range.",
+    )
+    prepare_parser.add_argument(
+        "--true-peak",
+        type=float,
+        default=None,
+        help="Maximum true peak in dBTP.",
+    )
+    prepare_parser.add_argument(
+        "--sample-rate",
+        type=int,
+        default=None,
+        help="Output sample rate for normalized WAV files.",
+    )
+    prepare_parser.add_argument(
+        "--mono",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Write mono output. Use --no-mono to keep the original channel count.",
+    )
+    prepare_parser.add_argument(
+        "--overwrite",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Overwrite existing prepared files.",
+    )
+    prepare_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate inputs and config without running ffmpeg.",
+    )
+    prepare_parser.set_defaults(handler=run_prepare_stage)
 
     dataset_parser = subparsers.add_parser(
         "dataset",

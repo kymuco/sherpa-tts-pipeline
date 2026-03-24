@@ -1,3 +1,14 @@
+prepare:
+  loudness:
+    target_lufs: -18.0
+    loudness_range: 7.0
+    true_peak: -1.5
+  audio:
+    sample_rate: 22050
+    mono: true
+  output:
+    overwrite: false
+
 dataset:
   language: ru
   whisper:

@@ -33,5 +33,6 @@ def test_dataset_command_smoke(tmp_path: Path) -> None:
 
 def test_example_config_loads() -> None:
     config = load_yaml_config(Path("examples/voice.yaml"))
+    assert "prepare" in config
     assert "dataset" in config
     assert "speak" in config
