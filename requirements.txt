@@ -1,0 +1,6 @@
+PyYAML>=6.0
+ctranslate2>=4.0.0
+faster-whisper>=1.1.0
+soundfile>=0.12.1
+sherpa-onnx-bin
+torch
