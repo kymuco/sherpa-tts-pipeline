@@ -44,6 +44,12 @@ Training is intended to run in Google Colab first. The notebook should become th
 
 This stage takes a trained checkpoint, exports ONNX, and prepares a `sherpa-onnx` bundle.
 
+For Piper-based voices, a speak-ready bundle includes:
+
+- `model.onnx` with Sherpa metadata embedded
+- `tokens.txt`
+- `espeak-ng-data/`
+
 ## 6. Infer
 
 This stage runs local TTS inference for smoke tests, benchmarking, and demos.

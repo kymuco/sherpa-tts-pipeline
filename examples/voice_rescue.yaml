@@ -41,6 +41,7 @@ dataset:
 
 export:
   piper_src: external/piper1-gpl/src
+  voice_config_json: null
   tokens: null
   espeak_data_dir: null
   opset_version: 15

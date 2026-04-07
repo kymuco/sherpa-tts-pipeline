@@ -15,8 +15,11 @@ env/
 
 .ipynb_checkpoints/
 .tmp/
+train_piper_colab_current.ipynb
 
 data/
+raw_audio/
+prepared_audio/
 artifacts/
 outputs/
 checkpoints/

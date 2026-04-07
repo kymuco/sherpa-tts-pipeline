@@ -34,6 +34,12 @@ def test_export_command_smoke(tmp_path: Path) -> None:
 
     piper_src = tmp_path / "external" / "piper1-gpl" / "src"
     piper_src.mkdir(parents=True, exist_ok=True)
+    voice_config_json = tmp_path / "release" / "demo_voice.json"
+    voice_config_json.parent.mkdir(parents=True, exist_ok=True)
+    voice_config_json.write_text(
+        '{"audio":{"sample_rate":22050},"espeak":{"voice":"ru"},"phoneme_type":"espeak","num_speakers":1,"phoneme_id_map":{"a":[1]}}',
+        encoding="utf-8",
+    )
 
     exit_code = main(
         [
@@ -44,6 +50,8 @@ def test_export_command_smoke(tmp_path: Path) -> None:
             str(tmp_path / "release" / "demo_voice"),
             "--piper-src",
             str(piper_src),
+            "--voice-config-json",
+            str(voice_config_json),
             "--dry-run",
         ]
     )

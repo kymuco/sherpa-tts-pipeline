@@ -447,16 +447,19 @@ sherpa-tts export ^
   --checkpoint path\to\model.ckpt ^
   --out release\my_voice ^
   --piper-src path\to\piper1-gpl\src ^
-  --tokens path\to\tokens.txt ^
+  --voice-config-json path\to\my_voice.json ^
   --espeak-data-dir path\to\espeak-ng-data
 ```
 
-If `tokens.txt` or `espeak-ng-data` are missing, export still works, but the bundle is not ready for `speak`.
+`--voice-config-json` lets the export step generate `tokens.txt` from the Piper config and embed the Sherpa metadata into `model.onnx`.
+
+If `tokens.txt`, metadata, or `espeak-ng-data` are missing, export still works, but the bundle is not ready for `speak`.
 
 Expected good result:
 
 - `model.onnx` exists
 - for a speak-ready bundle, `tokens.txt` and `espeak-ng-data/` are also present
+- the exported ONNX already contains the metadata that `sherpa-onnx` expects
 
 ## 10. Run Local Inference With `speak`
 

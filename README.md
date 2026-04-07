@@ -164,7 +164,7 @@ Train in Colab:
 Export a checkpoint:
 
 ```bash
-sherpa-tts export --checkpoint path/to/model.ckpt --out release/my_voice --piper-src path/to/piper1-gpl/src
+sherpa-tts export --checkpoint path/to/model.ckpt --out release/my_voice --piper-src path/to/piper1-gpl/src --voice-config-json path/to/my_voice.json --espeak-data-dir path/to/espeak-ng-data
 ```
 
 Run local inference:
@@ -172,6 +172,8 @@ Run local inference:
 ```bash
 sherpa-tts speak --model-dir release/my_voice --text "Hello"
 ```
+
+For a `sherpa-onnx` ready bundle, pass `--voice-config-json` during export. It generates `tokens.txt` from the Piper config and writes the metadata that Sherpa expects inside `model.onnx`.
 
 ## First Successful Run
 

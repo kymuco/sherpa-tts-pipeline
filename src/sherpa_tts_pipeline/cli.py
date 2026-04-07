@@ -263,6 +263,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional tokens.txt to copy into the output bundle.",
     )
     export_parser.add_argument(
+        "--voice-config-json",
+        default=None,
+        help="Optional Piper voice config JSON to turn into tokens.txt automatically.",
+    )
+    export_parser.add_argument(
         "--espeak-data-dir",
         default=None,
         help="Optional espeak-ng-data directory to copy into the output bundle.",
